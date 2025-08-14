@@ -1,72 +1,79 @@
 export interface GenerateAnimationParams {
-  imageFile: File;
+  imageUrl: string;
   prompt: string;
 }
 
-// Helper function to convert File to base64
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => {
-      const result = reader.result as string;
-      // Remove the data URL prefix (e.g., "data:image/jpeg;base64,")
-      const base64 = result.split(",")[1];
-      resolve(base64);
-    };
-    reader.onerror = (error) => reject(error);
-  });
-}
-
 export async function generateAnimation(params: GenerateAnimationParams): Promise<string> {
-  const { imageFile, prompt } = params;
+  const { imageUrl, prompt } = params;
 
-  // Use proxy in development, direct API in production
-  const isDevelopment = import.meta.env.DEV;
-  const baseUrl = isDevelopment ? "http://localhost:8099/v1/videos/image2video" : "https://api.klingai.com/v1/videos/image2video";
+  // Use GoAPI Kling API
+  const createTaskUrl = "https://api.goapi.ai/api/v1/task";
 
-  // Convert image to base64
-  const imageBase64 = await fileToBase64(imageFile);
-
-  // Create JSON payload as required by Kling AI API
+  // Create payload according to GoAPI Kling API specification
   const payload = {
-    prompt: prompt,
-    image: imageBase64,
+    model: "kling",
+    task_type: "video_generation",
+    input: {
+      prompt: prompt,
+      negative_prompt: "",
+      cfg_scale: 0.5,
+      duration: 5,
+      aspect_ratio: "1:1",
+      image_url: imageUrl, // Direct URL to the image
+      camera_control: {
+        type: "simple",
+        config: {
+          horizontal: 0,
+          vertical: 0,
+          pan: 0,
+          tilt: 0,
+          roll: 0,
+          zoom: 0,
+        },
+      },
+      mode: "std",
+    },
+    config: {
+      service_mode: "public",
+      webhook_config: {
+        endpoint: "",
+        secret: "",
+      },
+    },
   };
 
-  // Make the initial request to start video generation
-  const createResp = await fetch(baseUrl, {
+  // Make the initial request to create video generation task
+  const createResp = await fetch(createTaskUrl, {
     method: "POST",
     body: JSON.stringify(payload),
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${import.meta.env.VITE_KLING_API_KEY}`,
+      "x-api-key": import.meta.env.VITE_KLING_API_KEY,
     },
   });
 
   if (!createResp.ok) {
     const text = await createResp.text();
-    throw new Error(`Generation request failed: ${createResp.status} ${text}`);
+    throw new Error(`Task creation failed: ${createResp.status} ${text}`);
   }
 
   const data = await createResp.json();
 
-  // Check if we got a direct video URL (synchronous response)
-  if (data.videoUrl) {
-    return data.videoUrl;
+  if (data.code !== 200) {
+    throw new Error(`API Error: ${data.message || "Unknown error"}`);
   }
 
-  // Check if we got a job ID for async processing
-  if (data.jobId) {
-    return await pollForVideoUrl(data.jobId);
+  const taskId = data.data.task_id;
+  if (!taskId) {
+    throw new Error("No task ID received from GoAPI");
   }
 
-  throw new Error("Unexpected response from Kling API (no videoUrl or jobId)");
+  // Poll for task completion
+  return await pollForTaskCompletion(taskId);
 }
 
-async function pollForVideoUrl(jobId: string): Promise<string> {
-  const isDevelopment = import.meta.env.DEV;
-  const baseUrl = isDevelopment ? "http://localhost:8099/v1/videos/image2video" : "https://api.klingai.com/v1/videos/image2video";
+async function pollForTaskCompletion(taskId: string): Promise<string> {
+  const getTaskUrl = `https://api.goapi.ai/api/v1/task/${taskId}`;
 
   const timeoutMs = Number(import.meta.env.VITE_KLING_TIMEOUT_MS ?? 240000); // 4 min default
   const pollIntervalMs = Number(import.meta.env.VITE_KLING_POLL_MS ?? 3000);
@@ -76,32 +83,54 @@ async function pollForVideoUrl(jobId: string): Promise<string> {
     await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
 
     try {
-      const statusResp = await fetch(`${baseUrl}?id=${encodeURIComponent(jobId)}`, {
+      const statusResp = await fetch(getTaskUrl, {
         headers: {
-          Authorization: `Bearer ${import.meta.env.VITE_KLING_API_KEY}`,
+          "x-api-key": import.meta.env.VITE_KLING_API_KEY,
         },
       });
 
       if (!statusResp.ok) {
+        console.warn(`Status check failed: ${statusResp.status}`);
         continue;
       }
 
       const statusData = await statusResp.json();
 
-      // Check if video is ready
-      if (statusData.videoUrl) {
-        return statusData.videoUrl;
+      if (statusData.code !== 200) {
+        console.warn(`API Error: ${statusData.message}`);
+        continue;
       }
 
-      // Check if generation failed
-      if (statusData.status === "failed") {
-        throw new Error(statusData.error || "Video generation failed");
+      const task = statusData.data;
+      const status = task.status;
+
+      // Check if task is completed
+      if (status === "completed") {
+        const output = task.output;
+        if (output && output.works && output.works.length > 0) {
+          const work = output.works[0];
+          if (work.video && work.video.resource_without_watermark) {
+            return work.video.resource_without_watermark;
+          } else if (work.video && work.video.resource) {
+            return work.video.resource;
+          }
+        }
+        throw new Error("Task completed but no video URL found");
+      }
+
+      // Check if task failed
+      if (status === "failed") {
+        const error = task.error;
+        throw new Error(error?.message || error?.raw_message || "Task failed");
       }
 
       // Check if still processing
-      if (statusData.status === "processing" || statusData.status === "pending") {
+      if (status === "pending" || status === "processing") {
+        console.log(`Task status: ${status}`);
         continue;
       }
+
+      console.warn(`Unknown task status: ${status}`);
     } catch (error) {
       // Continue polling on network errors
       console.warn("Polling error:", error);
@@ -109,5 +138,5 @@ async function pollForVideoUrl(jobId: string): Promise<string> {
     }
   }
 
-  throw new Error("Timed out while waiting for Kling to generate video");
+  throw new Error("Timed out while waiting for video generation");
 }
