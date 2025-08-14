@@ -22,8 +22,8 @@ A React application that uses Kling AI to generate animated videos from images a
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/card-magic-fx-main.git
-cd card-magic-fx-main
+git clone https://github.com/neolates-aleksey/card-magic-mb.git
+cd card-magic-mb
 ```
 
 2. Install dependencies:
