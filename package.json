@@ -1,7 +1,7 @@
 {
   "name": "vite_react_shadcn_ts",
   "private": true,
-  "homepage": "https://neolates-aleksey.github.io/card-magic-mb/",
+  "homepage": "https://neolates-aleksey.github.io/card-magic-mb",
   "version": "0.0.0",
   "type": "module",
   "scripts": {
