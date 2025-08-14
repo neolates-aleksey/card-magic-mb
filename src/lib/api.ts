@@ -3,6 +3,21 @@ export interface GenerateAnimationParams {
   prompt: string;
 }
 
+// Helper function to convert File to base64
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      const result = reader.result as string;
+      // Remove the data URL prefix (e.g., "data:image/jpeg;base64,")
+      const base64 = result.split(",")[1];
+      resolve(base64);
+    };
+    reader.onerror = (error) => reject(error);
+  });
+}
+
 export async function generateAnimation(params: GenerateAnimationParams): Promise<string> {
   const { imageFile, prompt } = params;
 
@@ -10,18 +25,22 @@ export async function generateAnimation(params: GenerateAnimationParams): Promis
   const isDevelopment = import.meta.env.DEV;
   const baseUrl = isDevelopment ? "http://localhost:8099/v1/videos/image2video" : "https://api.klingai.com/v1/videos/image2video";
 
-  // Create form data with the required fields
-  const form = new FormData();
-  form.append("prompt", prompt);
-  form.append("image", imageFile, imageFile.name);
+  // Convert image to base64
+  const imageBase64 = await fileToBase64(imageFile);
+
+  // Create JSON payload as required by Kling AI API
+  const payload = {
+    prompt: prompt,
+    image: imageBase64,
+  };
 
   // Make the initial request to start video generation
   const createResp = await fetch(baseUrl, {
     method: "POST",
-    body: form,
+    body: JSON.stringify(payload),
     headers: {
+      "Content-Type": "application/json",
       Authorization: `Bearer ${import.meta.env.VITE_KLING_API_KEY}`,
-      // Don't set Content-Type for FormData - browser will set it automatically with boundary
     },
   });
 

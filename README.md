@@ -1,91 +1,114 @@
-# Welcome to your Lovable project
+# Card Magic FX
 
-## Project info
+A React application that uses Kling AI to generate animated videos from images and prompts.
 
-**URL**: https://lovable.dev/projects/47f77fc0-2995-4341-a65b-7bf64bf20cae
+## Features
 
-## How can I edit this code?
+- 🎨 Upload images and add prompts to generate animated videos
+- ✨ Beautiful UI built with React, TypeScript, and Tailwind CSS
+- 🎬 Integration with Kling AI's image-to-video API
+- 📱 Responsive design for mobile and desktop
+- 🚀 Fast development with Vite
 
-There are several ways of editing your application.
+## Development
 
-**Use Lovable**
+### Prerequisites
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/47f77fc0-2995-4341-a65b-7bf64bf20cae) and start prompting.
+- Node.js 18+
+- npm or bun
 
-Changes made via Lovable will be committed automatically to this repo.
+### Setup
 
-**Use your preferred IDE**
+1. Clone the repository:
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+```bash
+git clone https://github.com/yourusername/card-magic-fx-main.git
+cd card-magic-fx-main
+```
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+2. Install dependencies:
 
-Follow these steps:
+```bash
+npm install
+# or
+bun install
+```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+3. Create a `.env` file in the root directory:
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+```env
+VITE_KLING_API_KEY=your_kling_api_key_here
+```
 
-# Step 3: Install the necessary dependencies.
-npm i
+4. Start the development server:
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```bash
 npm run dev
+# or
+bun dev
 ```
 
-**Edit a file directly in GitHub**
+5. (Optional) Start the proxy server for local development:
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-### Backend integration (Kling)
-
-This app expects two HTTP endpoints to be available (e.g. via Supabase Edge Functions, Cloudflare Workers or your own server):
-
-- `VITE_KLING_FUNCTION_URL` (POST): accepts multipart form-data with fields `prompt` and `image` and returns either `{ videoUrl }` immediately or `{ jobId }` for async jobs.
-- `VITE_KLING_STATUS_URL` (GET): polled with `?id=<jobId>` and should return `{ videoUrl }` when ready or `{ status: "failed", error: "why" }`.
-
-Environment variables (add to `.env`):
-
-```
-VITE_KLING_FUNCTION_URL=https://your-domain.com/functions/v1/kling-generate
-VITE_KLING_STATUS_URL=https://your-domain.com/functions/v1/kling-status
-VITE_KLING_TIMEOUT_MS=240000
-VITE_KLING_POLL_MS=3000
+```bash
+npm run proxy
 ```
 
-The UI will upload the selected image and prompt to `VITE_KLING_FUNCTION_URL` and then poll `VITE_KLING_STATUS_URL` until the final `videoUrl` is returned.
+The app will be available at `http://localhost:8080`
 
-## How can I deploy this project?
+## Deployment
 
-Simply open [Lovable](https://lovable.dev/projects/47f77fc0-2995-4341-a65b-7bf64bf20cae) and click on Share -> Publish.
+### GitHub Pages
 
-## Can I connect a custom domain to my Lovable project?
+This project is configured for automatic deployment to GitHub Pages.
 
-Yes, you can!
+1. **Fork or create a new repository** on GitHub
+2. **Push your code** to the `main` or `master` branch
+3. **Add your Kling API key** as a GitHub secret:
+   - Go to your repository Settings → Secrets and variables → Actions
+   - Add a new secret named `VITE_KLING_API_KEY` with your API key
+4. **Enable GitHub Pages**:
+   - Go to Settings → Pages
+   - Source: Deploy from a branch
+   - Branch: `gh-pages` (will be created automatically)
+   - Folder: `/ (root)`
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+The GitHub Actions workflow will automatically build and deploy your app when you push to the main branch.
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+### Manual Deployment
+
+1. Build the project:
+
+```bash
+npm run build
+```
+
+2. Deploy the `dist` folder to your hosting provider
+
+## Environment Variables
+
+| Variable                | Description                                        | Required |
+| ----------------------- | -------------------------------------------------- | -------- |
+| `VITE_KLING_API_KEY`    | Your Kling AI API key                              | Yes      |
+| `VITE_KLING_TIMEOUT_MS` | Timeout for video generation (default: 240000)     | No       |
+| `VITE_KLING_POLL_MS`    | Polling interval for status checks (default: 3000) | No       |
+
+## API Configuration
+
+The app automatically switches between development and production API endpoints:
+
+- **Development**: Uses local proxy server (`http://localhost:8099`)
+- **Production**: Uses direct Kling AI API (`https://api.klingai.com`)
+
+## Tech Stack
+
+- **Frontend**: React 18, TypeScript, Vite
+- **Styling**: Tailwind CSS, shadcn/ui components
+- **State Management**: React Query
+- **Routing**: React Router DOM
+- **Build Tool**: Vite
+- **Deployment**: GitHub Pages, GitHub Actions
+
+## License
+
+MIT License - see LICENSE file for details
